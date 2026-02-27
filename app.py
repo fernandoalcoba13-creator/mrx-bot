@@ -1,23 +1,21 @@
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime # <--- Agregamos esto
 from flask import Flask, render_template_string
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN (Variables de Railway)
+# CONFIGURACIÓN DE VARIABLES
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
 async def send_automatic_broadcast():
     if not TOKEN or not GROUP_IDS:
-        print("Faltan variables de entorno.")
         return
 
     bot = Bot(token=TOKEN)
-    # Link directo de tu imagen en GitHub
     IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
     
     texto = (
@@ -44,7 +42,6 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # Envío con foto
             await bot.send_photo(
                 chat_id=group_id, 
                 photo=IMAGE_URL, 
@@ -52,24 +49,21 @@ async def send_automatic_broadcast():
                 parse_mode='HTML', 
                 reply_markup=reply_markup
             )
-            print(f"Difusión exitosa en: {group_id}")
-        except Exception as e:
-            # Si falla la foto, envía solo texto
+        except Exception:
             try:
                 await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
-            except:
-                print(f"Error en {group_id}: {e}")
-        
+            except Exception:
+                pass
         await asyncio.sleep(1)
 
-# PROGRAMACIÓN
+# CONFIGURACIÓN DEL RELOJ
 scheduler = BackgroundScheduler()
-# next_run_time=datetime.now() dispara el primero al instante de subirlo
+# Agregamos 'next_run_time' para que el primer envío sea INSTANTÁNEO al subirlo
 scheduler.add_job(
     lambda: asyncio.run(send_automatic_broadcast()), 
     'interval', 
     hours=8, 
-    next_run_time=datetime.now()
+    next_run_time=datetime.now() # <--- Dispara ahora mismo
 )
 scheduler.start()
 
@@ -77,8 +71,8 @@ scheduler.start()
 def home():
     return render_template_string('''
         <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
-            <h1 style="color:#f05423;">MR X BOT - ACTIVO</h1>
-            <p style="color:#00ff00;">✓ Publicidad cada 8 horas.</p>
+            <h1 style="color:#f05423;">MR X BOT - MODO PROFESIONAL</h1>
+            <p style="color:#00ff00;">✓ Difusión automática activa cada 8 horas.</p>
         </body>
     ''')
 
