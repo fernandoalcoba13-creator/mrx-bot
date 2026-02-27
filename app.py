@@ -1,6 +1,6 @@
 import os
 import asyncio
-from datetime import datetime # <--- Agregamos esto
+from datetime import datetime
 from flask import Flask, render_template_string
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -15,7 +15,10 @@ async def send_automatic_broadcast():
     if not TOKEN or not GROUP_IDS:
         return
 
+    # Creamos la instancia del bot adentro de la función para refrescar la conexión
     bot = Bot(token=TOKEN)
+    
+    # URL de tu imagen (Verificada)
     IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
     
     texto = (
@@ -42,6 +45,7 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
+            # Forzamos el envío de la foto
             await bot.send_photo(
                 chat_id=group_id, 
                 photo=IMAGE_URL, 
@@ -49,21 +53,30 @@ async def send_automatic_broadcast():
                 parse_mode='HTML', 
                 reply_markup=reply_markup
             )
-        except Exception:
+            print(f"Imagen enviada a {group_id}")
+        except Exception as e:
+            print(f"Falla imagen en {group_id}: {e}")
             try:
-                await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
-            except Exception:
-                pass
-        await asyncio.sleep(1)
+                # Si la imagen falla, intentamos mandar el texto con botones (para no perder el marketing)
+                await bot.send_message(
+                    chat_id=group_id, 
+                    text=texto, 
+                    parse_mode='HTML', 
+                    reply_markup=reply_markup
+                )
+            except Exception as e2:
+                print(f"Error fatal en {group_id}: {e2}")
+        
+        await asyncio.sleep(1.5) # Un poco más de tiempo para que cargue la imagen
 
 # CONFIGURACIÓN DEL RELOJ
 scheduler = BackgroundScheduler()
-# Agregamos 'next_run_time' para que el primer envío sea INSTANTÁNEO al subirlo
+# next_run_time=datetime.now() dispara el primero al instante
 scheduler.add_job(
     lambda: asyncio.run(send_automatic_broadcast()), 
     'interval', 
-    hours=8, 
-    next_run_time=datetime.now() # <--- Dispara ahora mismo
+    minutes=1, 
+    next_run_time=datetime.now()
 )
 scheduler.start()
 
@@ -72,7 +85,7 @@ def home():
     return render_template_string('''
         <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
             <h1 style="color:#f05423;">MR X BOT - MODO PROFESIONAL</h1>
-            <p style="color:#00ff00;">✓ Difusión automática activa cada 8 horas.</p>
+            <p style="color:#00ff00;">✓ Difusión cada 8 horas activa.</p>
         </body>
     ''')
 
