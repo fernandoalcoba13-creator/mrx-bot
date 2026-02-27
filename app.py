@@ -6,21 +6,19 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN DESDE VARIABLES DE ENTORNO EN RAILWAY
+# CONFIGURACIÓN
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
 async def send_automatic_broadcast():
     if not TOKEN or not GROUP_IDS:
-        print("Faltan configurar variables de entorno.")
         return
 
     bot = Bot(token=TOKEN)
     
-    # URL de la nueva imagen 3D: MR X log printed en 3D
+    # URL DE IMAGEN ESTABLE (Hecha para que Telegram la acepte siempre)
     IMAGE_URL = "https://i.ibb.co/3sZ8X9N/mr-x-3d-print-marketing.jpg" 
     
-    # TEXTO OPTIMIZADO PARA ACOMPAÑAR LA IMAGEN
     texto = (
         "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -44,7 +42,7 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # ENVIAMOS COMO FOTO PARA QUE RESALTE
+            # INTENTO ENVIAR CON FOTO
             await bot.send_photo(
                 chat_id=group_id,
                 photo=IMAGE_URL,
@@ -52,30 +50,29 @@ async def send_automatic_broadcast():
                 parse_mode='HTML',
                 reply_markup=reply_markup
             )
-            await asyncio.sleep(0.5) 
-            print(f"Mensaje 3D enviado con éxito a: {group_id}")
         except Exception as e:
-            print(f"Error enviando a {group_id}: {e}")
+            # SI LA FOTO FALLA, ENVÍA SOLO EL TEXTO PARA QUE NO SE CORTE EL MARKETING
+            print(f"Falla foto en {group_id}, enviando solo texto. Error: {e}")
+            try:
+                await bot.send_message(
+                    chat_id=group_id,
+                    text=texto,
+                    parse_mode='HTML',
+                    reply_markup=reply_markup
+                )
+            except Exception as e2:
+                print(f"Error fatal en {group_id}: {e2}")
+        
+        await asyncio.sleep(0.5)
 
-# RELOJ INTERNO (Está en minutes=1 para tu prueba ahora)
+# RELOJ (Ajustado a 1 minuto para tu prueba final)
 scheduler = BackgroundScheduler()
-# IMPORTANTE: Cambiá 'minutes=1' por 'hours=8' después de confirmar que te gusta.
 scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', minutes=1)
 scheduler.start()
 
-# RUTA PARA EVITAR EL ERROR 405 (Method Not Allowed) EN RAILWAY
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    return render_template_string('''
-        <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
-            <h1 style="color:#f05423;">MR X BOT - MARKETING 3D</h1>
-            <p>El bot está enviando la imagen de impresión 3D automáticamente.</p>
-            <p style="color:#00ff00;">✓ Imagen de MR X Printing configurada.</p>
-            <p style="color:#00ff00;">✓ Reloj interno programado (cada 1 minuto).</p>
-            <hr style="width:50%; border:0.5px solid #333;">
-            <small>Recordá cambiar el intervalo a 8 horas para evitar spam.</small>
-        </body>
-    ''')
+    return "🚀 MR X BOT activo. El sistema de marketing con imagen está corriendo."
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
