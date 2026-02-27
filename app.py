@@ -6,6 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
+# CONFIGURACIÓN DE VARIABLES
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
@@ -15,17 +16,19 @@ async def send_automatic_broadcast():
 
     bot = Bot(token=TOKEN)
     
-    # BUSCAMOS EL ARCHIVO DENTRO DE LA CARPETA DEL BOT
-    foto_path = "banner.jpg" 
+    # URL de tu imagen en GitHub
+    IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
     
+    # NUEVA ESTÉTICA MEJORADA
     texto = (
-        "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
+        "🚀 <b>¡POTENCIÁ TU TALLER 3D CON MR X!</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "En la <b>Comunidad MR X</b> te damos las herramientas para que tu taller no pare nunca:\n\n"
-        "📊 <b>Calculadoras:</b> Costos exactos y sistema AMS.\n"
-        "🛡️ <b>Protección:</b> Marca de agua automática para tus STL.\n"
-        "🤖 <b>Diagnóstico IA:</b> Inteligencia Artificial para resolver fallas.\n\n"
-        "⬇️ <b>Seleccioná una herramienta para empezar:</b>"
+        "Llevá tu producción al siguiente nivel con nuestras herramientas <b>¡GRATUITAS!</b> 🎁\n\n"
+        "💎 <b>SOLUCIONES PARA MAKERS:</b>\n"
+        "• 📊 <b>Calculadoras:</b> Costos y sistema multicolor.\n"
+        "• 🛡️ <b>Protección:</b> Marca de agua para tus archivos STL.\n"
+        "• 🤖 <b>IA:</b> Diagnóstico inteligente de fallas.\n\n"
+        "⬇️ <i>¡Accedé ahora desde los botones!</i>"
     )
     
     keyboard = [
@@ -41,31 +44,36 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # ENVIAMOS EL ARCHIVO LOCAL (Telegram lo recibe directo del servidor)
-            if os.path.exists(foto_path):
-                with open(foto_path, 'rb') as photo:
-                    await bot.send_photo(
-                        chat_id=group_id, 
-                        photo=photo, 
-                        caption=texto, 
-                        parse_mode='HTML', 
-                        reply_markup=reply_markup
-                    )
-            else:
-                # Si por alguna razón no encuentra el archivo, manda el texto
+            # Intento con foto (usando el link que ya nos funcionó)
+            await bot.send_photo(
+                chat_id=group_id, 
+                photo=IMAGE_URL, 
+                caption=texto, 
+                parse_mode='HTML', 
+                reply_markup=reply_markup
+            )
+        except Exception:
+            try:
+                # Backup: Solo texto si la imagen falla
                 await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
-        except Exception as e:
-            print(f"Error: {e}")
+            except Exception:
+                pass
         await asyncio.sleep(1)
 
+# CONFIGURACIÓN DEL RELOJ - CAMBIADO A 8 HORAS
 scheduler = BackgroundScheduler()
-# Cuando veas que funciona, cambiá 'minutes=1' por 'hours=8'
-scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', minutes=1)
+scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', hours=8)
 scheduler.start()
 
 @app.route('/')
 def home():
-    return "🚀 MR X BOT - Enviando desde archivo local"
+    return render_template_string('''
+        <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
+            <h1 style="color:#f05423;">MR X BOT - MODO PROFESIONAL</h1>
+            <p style="color:#00ff00;">✓ Difusión automática activa cada 8 horas.</p>
+            <p>El bot está promocionando tus herramientas gratuitas y la Academia.</p>
+        </body>
+    ''')
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
