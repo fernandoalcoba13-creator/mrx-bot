@@ -17,7 +17,7 @@ async def send_automatic_broadcast():
     bot = Bot(token=TOKEN)
     
     # URL DE IMAGEN ESTABLE (Hecha para que Telegram la acepte siempre)
-    IMAGE_URL = "https://i.ibb.co/3sZ8X9N/mr-x-3d-print-marketing.jpg" 
+    IMAGE_URL = "https://github.com/fernandoalcoba13-creator/mrx-bot/blob/main/banner.jpg?raw=true" 
     
     texto = (
         "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
@@ -77,3 +77,4 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
