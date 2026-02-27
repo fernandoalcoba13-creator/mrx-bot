@@ -22,13 +22,15 @@ async def send_automatic_broadcast():
     foto_local = "banner.jpg"
     
     texto = (
-        "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "En la <b>Comunidad MR X</b> te damos las herramientas para que tu taller no pare nunca:\n\n"
-        "📊 <b>Calculadoras:</b> Costos exactos y sistema AMS.\n"
-        "🛡️ <b>Protección:</b> Marca de agua automática para tus STL.\n"
-        "🤖 <b>Diagnóstico IA:</b> Inteligencia Artificial para resolver fallas.\n\n"
-        "⬇️ <b>Seleccioná una herramienta para empezar:</b>"
+    "🚀 <b>¡POTENCIÁ TU TALLER 3D CON MR X!</b>\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "Llevá tu producción al siguiente nivel con nuestras herramientas <b>¡TOTALMENTE GRATUITAS!</b> 🎁\n\n"
+    "💎 <b>SOLUCIONES PARA MAKERS:</b>\n"
+    "• 📊 <b>Calculadoras:</b> Costos exactos y sistema multicolor.\n"
+    "• 🛡️ <b>Protección:</b> Marca de agua para tus archivos STL.\n"
+    "• 🤖 <b>IA:</b> Diagnóstico inteligente de fallas en tus impresiones.\n\n"
+    "⬇️ <i>¡Accedé sin costo desde los botones de abajo!</i>"
+)
     )
     
     keyboard = [
@@ -71,3 +73,4 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
