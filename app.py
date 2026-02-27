@@ -1,13 +1,11 @@
 import os
 import asyncio
-from datetime import datetime
 from flask import Flask, render_template_string
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN DE VARIABLES
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
@@ -15,21 +13,22 @@ async def send_automatic_broadcast():
     if not TOKEN or not GROUP_IDS:
         return
 
-    # Creamos la instancia del bot adentro de la función para refrescar la conexión
     bot = Bot(token=TOKEN)
     
-    # URL de tu imagen (Verificada)
-    IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
+    # OPCIÓN A: Link directo (PostImg es muy estable para Telegram)
+    IMAGE_URL = "https://i.postimg.cc/qM9D8fC9/mr-x-3d-banner.jpg" 
+    
+    # OPCIÓN B: Archivo local (por si la A falla)
+    foto_local = "banner.jpg"
     
     texto = (
-        "🚀 <b>¡POTENCIÁ TU TALLER 3D CON MR X!</b>\n"
+        "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "Llevá tu producción al siguiente nivel con nuestras herramientas <b>¡GRATUITAS!</b> 🎁\n\n"
-        "💎 <b>SOLUCIONES PARA MAKERS:</b>\n"
-        "• 📊 <b>Calculadoras:</b> Costos y sistema multicolor.\n"
-        "• 🛡️ <b>Protección:</b> Marca de agua para tus archivos STL.\n"
-        "• 🤖 <b>IA:</b> Diagnóstico inteligente de fallas.\n\n"
-        "⬇️ <i>¡Accedé ahora desde los botones!</i>"
+        "En la <b>Comunidad MR X</b> te damos las herramientas para que tu taller no pare nunca:\n\n"
+        "📊 <b>Calculadoras:</b> Costos exactos y sistema AMS.\n"
+        "🛡️ <b>Protección:</b> Marca de agua automática para tus STL.\n"
+        "🤖 <b>Diagnóstico IA:</b> Inteligencia Artificial para resolver fallas.\n\n"
+        "⬇️ <b>Seleccioná una herramienta para empezar:</b>"
     )
     
     keyboard = [
@@ -45,49 +44,29 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # Forzamos el envío de la foto
-            await bot.send_photo(
-                chat_id=group_id, 
-                photo=IMAGE_URL, 
-                caption=texto, 
-                parse_mode='HTML', 
-                reply_markup=reply_markup
-            )
-            print(f"Imagen enviada a {group_id}")
-        except Exception as e:
-            print(f"Falla imagen en {group_id}: {e}")
+            # Intento 1: Por URL
+            await bot.send_photo(chat_id=group_id, photo=IMAGE_URL, caption=texto, parse_mode='HTML', reply_markup=reply_markup)
+        except:
             try:
-                # Si la imagen falla, intentamos mandar el texto con botones (para no perder el marketing)
-                await bot.send_message(
-                    chat_id=group_id, 
-                    text=texto, 
-                    parse_mode='HTML', 
-                    reply_markup=reply_markup
-                )
-            except Exception as e2:
-                print(f"Error fatal en {group_id}: {e2}")
-        
-        await asyncio.sleep(1.5) # Un poco más de tiempo para que cargue la imagen
+                # Intento 2: Archivo local
+                if os.path.exists(foto_local):
+                    with open(foto_local, 'rb') as f:
+                        await bot.send_photo(chat_id=group_id, photo=f, caption=texto, parse_mode='HTML', reply_markup=reply_markup)
+                else:
+                    # Intento 3: Solo texto si todo lo anterior falla
+                    await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
+            except:
+                pass
+        await asyncio.sleep(1)
 
-# CONFIGURACIÓN DEL RELOJ
 scheduler = BackgroundScheduler()
-# next_run_time=datetime.now() dispara el primero al instante
-scheduler.add_job(
-    lambda: asyncio.run(send_automatic_broadcast()), 
-    'interval', 
-    minutes=1, 
-    next_run_time=datetime.now()
-)
+# Cambiá a hours=8 cuando veas la foto
+scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', minutes=1)
 scheduler.start()
 
 @app.route('/')
 def home():
-    return render_template_string('''
-        <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
-            <h1 style="color:#f05423;">MR X BOT - MODO PROFESIONAL</h1>
-            <p style="color:#00ff00;">✓ Difusión cada 8 horas activa.</p>
-        </body>
-    ''')
+    return "🚀 MR X BOT - Intentando enviar imagen por múltiples vías"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
