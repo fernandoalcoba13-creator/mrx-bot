@@ -1,25 +1,25 @@
 import os
 import asyncio
+from datetime import datetime
 from flask import Flask, render_template_string
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN DE VARIABLES
+# CONFIGURACIÓN (Variables de Railway)
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
 async def send_automatic_broadcast():
     if not TOKEN or not GROUP_IDS:
+        print("Faltan variables de entorno.")
         return
 
     bot = Bot(token=TOKEN)
-    
-    # URL de tu imagen en GitHub
+    # Link directo de tu imagen en GitHub
     IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
     
-    # NUEVA ESTÉTICA MEJORADA
     texto = (
         "🚀 <b>¡POTENCIÁ TU TALLER 3D CON MR X!</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -44,7 +44,7 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # Intento con foto (usando el link que ya nos funcionó)
+            # Envío con foto
             await bot.send_photo(
                 chat_id=group_id, 
                 photo=IMAGE_URL, 
@@ -52,26 +52,33 @@ async def send_automatic_broadcast():
                 parse_mode='HTML', 
                 reply_markup=reply_markup
             )
-        except Exception:
+            print(f"Difusión exitosa en: {group_id}")
+        except Exception as e:
+            # Si falla la foto, envía solo texto
             try:
-                # Backup: Solo texto si la imagen falla
                 await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
-            except Exception:
-                pass
+            except:
+                print(f"Error en {group_id}: {e}")
+        
         await asyncio.sleep(1)
 
-# CONFIGURACIÓN DEL RELOJ - CAMBIADO A 8 HORAS
+# PROGRAMACIÓN
 scheduler = BackgroundScheduler()
-scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', hours=8)
+# next_run_time=datetime.now() dispara el primero al instante de subirlo
+scheduler.add_job(
+    lambda: asyncio.run(send_automatic_broadcast()), 
+    'interval', 
+    hours=8, 
+    next_run_time=datetime.now()
+)
 scheduler.start()
 
 @app.route('/')
 def home():
     return render_template_string('''
         <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
-            <h1 style="color:#f05423;">MR X BOT - MODO PROFESIONAL</h1>
-            <p style="color:#00ff00;">✓ Difusión automática activa cada 8 horas.</p>
-            <p>El bot está promocionando tus herramientas gratuitas y la Academia.</p>
+            <h1 style="color:#f05423;">MR X BOT - ACTIVO</h1>
+            <p style="color:#00ff00;">✓ Publicidad cada 8 horas.</p>
         </body>
     ''')
 
