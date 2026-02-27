@@ -1,28 +1,26 @@
 import os
 import asyncio
 from flask import Flask, request, render_template_string
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, MessageHandler, filters
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 app = Flask(__name__)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
-# CONFIGURACIÓN DE LOS BOTONES (Para reutilizar en anuncios y bienvenidas)
-def get_main_buttons():
-    keyboard = [
-        [InlineKeyboardButton("📊 CALCULADORA DE COSTOS", url="https://tools.kmorra3d.com")],
-        [InlineKeyboardButton("🛡️ MARCA TUS STL", url="https://tools.kmorra3d.com")],
-        [InlineKeyboardButton("🤖 DIAGNÓSTICO DE FALLAS IA", url="https://tools.kmorra3d.com")],
-        [InlineKeyboardButton("🌈 CALCULADORA MULTICOLOR", url="https://tools.kmorra3d.com")],
-        [InlineKeyboardButton("🎓 APRENDE A DISEÑAR", url="https://www.academiakmorra.com")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
 async def send_broadcast(message):
     bot = Bot(token=TOKEN)
-    reply_markup = get_main_buttons()
+    
+    # CONFIGURACIÓN DE BOTONES CON TUS LINKS EXACTOS
+    keyboard = [
+        [InlineKeyboardButton("📊 CALCULADORA DE COSTOS", url="https://tools.kmorra3d.com/calculadora-3d.html")],
+        [InlineKeyboardButton("🛡️ MARCA TUS STL", url="https://tools.kmorra3d.com/stl-watermark.html")],
+        [InlineKeyboardButton("🤖 DIAGNÓSTICO DE FALLAS IA", url="https://tools.kmorra3d.com/diagnostico_fallos.html")],
+        [InlineKeyboardButton("🌈 CALCULADORA MULTICOLOR", url="https://tools.kmorra3d.com/calculadora-ams.html")],
+        [InlineKeyboardButton("🎓 APRENDE A DISEÑAR", url="https://www.academiakmorra.com")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     for group_id in GROUP_IDS:
         try:
             await bot.send_message(
@@ -42,20 +40,20 @@ def index():
         msg = request.form.get('message')
         if msg:
             asyncio.run(send_broadcast(msg))
-            status = "🚀 ¡Difusión enviada con éxito!"
+            status = "🚀 ¡Anuncio enviado con éxito!"
     
     return render_template_string('''
         <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
-            <h1 style="color:#f05423;">MR X BOT - Panel Pro</h1>
-            <p>El mensaje se enviará con el diseño de 5 botones configurado.</p>
+            <h1 style="color:#f05423;">MR X BOT - Control Panel</h1>
+            <p>Escribí el texto llamativo y el bot le pondrá los 5 botones con sus links.</p>
             <form method="post">
-                <textarea name="message" rows="8" cols="60" style="border-radius:10px; padding:15px; border:none;" 
-                placeholder="Escribí el texto llamativo aquí..."></textarea><br><br>
-                <button type="submit" style="padding:15px 30px; border-radius:10px; background:#f05423; color:white; border:none; cursor:pointer; font-size:16px; font-weight:bold;">
-                    DISPARAR ANUNCIO 🚀
+                <textarea name="message" rows="8" cols="60" style="border-radius:10px; padding:15px; border:none; font-size:14px;" 
+                placeholder="Escribí el anuncio aquí..."></textarea><br><br>
+                <button type="submit" style="padding:15px 30px; border-radius:8px; background:#f05423; color:white; border:none; cursor:pointer; font-weight:bold; font-size:16px;">
+                    DIFUNDIR AHORA 🚀
                 </button>
             </form>
-            <p style="color:#00ff00;">{{status}}</p>
+            <p style="color:#00ff00; font-weight:bold;">{{status}}</p>
         </body>
     ''', status=status)
 
