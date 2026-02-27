@@ -17,19 +17,20 @@ async def send_automatic_broadcast():
 
     bot = Bot(token=TOKEN)
     
-    # DISEÑO ESTÉTICO MEJORADO
+    # URL de la nueva imagen 3D: MR X log printed en 3D
+    IMAGE_URL = "https://i.ibb.co/3sZ8X9N/mr-x-3d-print-marketing.jpg" 
+    
+    # TEXTO OPTIMIZADO PARA ACOMPAÑAR LA IMAGEN
     texto = (
-        "✨ <b>¡POTENCIÁ TU TALLER 3D CON MR X!</b> ✨\n"
+        "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "Llevá tu negocio al siguiente nivel con nuestras <b>Herramientas Profesionales GRATUITAS</b>. 🚀\n\n"
-        "💎 <b>¿Qué podés hacer hoy?</b>\n"
-        "• <b>Calculá:</b> Costos exactos y sistema multicolor.\n"
-        "• <b>Protegé:</b> Marca de agua automática para tus STL.\n"
-        "• <b>Resolvé:</b> Diagnóstico de fallas con Inteligencia Artificial.\n\n"
-        "⬇️ <i>¡Accedé ahora desde los botones!</i> ⬇️"
+        "En la <b>Comunidad MR X</b> te damos las herramientas para que tu taller no pare nunca:\n\n"
+        "📊 <b>Calculadoras:</b> Costos exactos y sistema AMS.\n"
+        "🛡️ <b>Protección:</b> Marca de agua automática para tus STL.\n"
+        "🤖 <b>Diagnóstico IA:</b> Inteligencia Artificial para resolver fallas.\n\n"
+        "⬇️ <b>Seleccioná una herramienta para empezar:</b>"
     )
     
-    # BOTONES CON LINKS ACTUALIZADOS
     keyboard = [
         [InlineKeyboardButton("📊 Calculadora de Costos PRO", url="https://tools.kmorra3d.com/calculadora-3d.html")],
         [InlineKeyboardButton("🌈 Calculadora AMS / Multicolor", url="https://tools.kmorra3d.com/calculadora-ams.html")],
@@ -43,14 +44,22 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
-            await asyncio.sleep(0.5) # Seguridad para evitar baneo de Telegram
+            # ENVIAMOS COMO FOTO PARA QUE RESALTE
+            await bot.send_photo(
+                chat_id=group_id,
+                photo=IMAGE_URL,
+                caption=texto, 
+                parse_mode='HTML',
+                reply_markup=reply_markup
+            )
+            await asyncio.sleep(0.5) 
+            print(f"Mensaje 3D enviado con éxito a: {group_id}")
         except Exception as e:
             print(f"Error enviando a {group_id}: {e}")
 
-# CONFIGURACIÓN DEL RELOJ INTERNO (SCHEDULER)
+# RELOJ INTERNO (Está en minutes=1 para tu prueba ahora)
 scheduler = BackgroundScheduler()
-# IMPORTANTE: Cambiá 'minutes=1' por 'hours=8' después de confirmar que funciona.
+# IMPORTANTE: Cambiá 'minutes=1' por 'hours=8' después de confirmar que te gusta.
 scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', minutes=1)
 scheduler.start()
 
@@ -59,16 +68,15 @@ scheduler.start()
 def home():
     return render_template_string('''
         <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#1a1a1a; color:white;">
-            <h1 style="color:#f05423;">MR X BOT - ESTADO ACTIVO</h1>
-            <p>El sistema de difusión con estética mejorada está funcionando.</p>
-            <p style="color:#00ff00;">✓ Reloj interno programado</p>
-            <p style="color:#00ff00;">✓ Conexión con Telegram OK</p>
+            <h1 style="color:#f05423;">MR X BOT - MARKETING 3D</h1>
+            <p>El bot está enviando la imagen de impresión 3D automáticamente.</p>
+            <p style="color:#00ff00;">✓ Imagen de MR X Printing configurada.</p>
+            <p style="color:#00ff00;">✓ Reloj interno programado (cada 1 minuto).</p>
             <hr style="width:50%; border:0.5px solid #333;">
             <small>Recordá cambiar el intervalo a 8 horas para evitar spam.</small>
         </body>
     ''')
 
 if __name__ == "__main__":
-    # Railway asigna un puerto dinámico, lo tomamos de aquí:
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
