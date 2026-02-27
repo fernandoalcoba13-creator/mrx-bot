@@ -6,7 +6,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS = os.getenv("GROUP_IDS", "").split(",")
 
@@ -16,8 +15,8 @@ async def send_automatic_broadcast():
 
     bot = Bot(token=TOKEN)
     
-    # URL DE IMAGEN ESTABLE (Hecha para que Telegram la acepte siempre)
-    IMAGE_URL = "https://github.com/fernandoalcoba13-creator/mrx-bot/blob/main/banner.jpg?raw=true" 
+    # ESTE ES TU LINK DE GITHUB RAW YA CORREGIDO
+    IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
     
     texto = (
         "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
@@ -42,39 +41,31 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # INTENTO ENVIAR CON FOTO
+            # Enviamos la foto con el link corregido
             await bot.send_photo(
-                chat_id=group_id,
-                photo=IMAGE_URL,
+                chat_id=group_id, 
+                photo=IMAGE_URL, 
                 caption=texto, 
-                parse_mode='HTML',
+                parse_mode='HTML', 
                 reply_markup=reply_markup
             )
         except Exception as e:
-            # SI LA FOTO FALLA, ENVÍA SOLO EL TEXTO PARA QUE NO SE CORTE EL MARKETING
-            print(f"Falla foto en {group_id}, enviando solo texto. Error: {e}")
+            print(f"Error con imagen: {e}. Enviando solo texto.")
             try:
-                await bot.send_message(
-                    chat_id=group_id,
-                    text=texto,
-                    parse_mode='HTML',
-                    reply_markup=reply_markup
-                )
-            except Exception as e2:
-                print(f"Error fatal en {group_id}: {e2}")
-        
-        await asyncio.sleep(0.5)
+                await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
+            except Exception:
+                pass
+        await asyncio.sleep(1)
 
-# RELOJ (Ajustado a 1 minuto para tu prueba final)
 scheduler = BackgroundScheduler()
+# Recordá: Después de ver que la foto llegó, cambiá 'minutes=1' por 'hours=8'
 scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', minutes=1)
 scheduler.start()
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def home():
-    return "🚀 MR X BOT activo. El sistema de marketing con imagen está corriendo."
+    return "🚀 MR X BOT - Sistema de Difusión con Imagen Activo"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
