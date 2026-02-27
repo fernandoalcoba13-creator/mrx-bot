@@ -28,7 +28,7 @@ async def mandar_aviso():
 
 # PROGRAMACIÓN CADA 8 HORAS
 sched = BackgroundScheduler()
-sched.add_job(lambda: asyncio.run(mandar_aviso()), 'interval', hours=8)
+sched.add_job(lambda: asyncio.run(mandar_aviso()), 'interval', minutes=1)
 sched.start()
 
 @app.route('/')
@@ -36,3 +36,4 @@ def home(): return "MR X BOT ACTIVO"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
