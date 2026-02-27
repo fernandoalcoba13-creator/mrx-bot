@@ -15,8 +15,8 @@ async def send_automatic_broadcast():
 
     bot = Bot(token=TOKEN)
     
-    # ESTE ES TU LINK DE GITHUB RAW YA CORREGIDO
-    IMAGE_URL = "https://raw.githubusercontent.com/fernandoalcoba13-creator/mrx-bot/main/banner.jpg" 
+    # BUSCAMOS EL ARCHIVO DENTRO DE LA CARPETA DEL BOT
+    foto_path = "banner.jpg" 
     
     texto = (
         "✨ <b>¿LISTO PARA ACELERAR TU PRODUCCIÓN 3D?</b> ✨\n"
@@ -41,30 +41,31 @@ async def send_automatic_broadcast():
         group_id = group_id.strip()
         if not group_id: continue
         try:
-            # Enviamos la foto con el link corregido
-            await bot.send_photo(
-                chat_id=group_id, 
-                photo=IMAGE_URL, 
-                caption=texto, 
-                parse_mode='HTML', 
-                reply_markup=reply_markup
-            )
-        except Exception as e:
-            print(f"Error con imagen: {e}. Enviando solo texto.")
-            try:
+            # ENVIAMOS EL ARCHIVO LOCAL (Telegram lo recibe directo del servidor)
+            if os.path.exists(foto_path):
+                with open(foto_path, 'rb') as photo:
+                    await bot.send_photo(
+                        chat_id=group_id, 
+                        photo=photo, 
+                        caption=texto, 
+                        parse_mode='HTML', 
+                        reply_markup=reply_markup
+                    )
+            else:
+                # Si por alguna razón no encuentra el archivo, manda el texto
                 await bot.send_message(chat_id=group_id, text=texto, parse_mode='HTML', reply_markup=reply_markup)
-            except Exception:
-                pass
+        except Exception as e:
+            print(f"Error: {e}")
         await asyncio.sleep(1)
 
 scheduler = BackgroundScheduler()
-# Recordá: Después de ver que la foto llegó, cambiá 'minutes=1' por 'hours=8'
+# Cuando veas que funciona, cambiá 'minutes=1' por 'hours=8'
 scheduler.add_job(lambda: asyncio.run(send_automatic_broadcast()), 'interval', minutes=1)
 scheduler.start()
 
 @app.route('/')
 def home():
-    return "🚀 MR X BOT - Sistema de Difusión con Imagen Activo"
+    return "🚀 MR X BOT - Enviando desde archivo local"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
