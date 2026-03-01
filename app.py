@@ -348,26 +348,41 @@ def es_contenido(msg):
     return es_imagen(msg) or es_archivo_3d(msg)
 
 def armar_bloques(mensajes):
+    """
+    Solo devuelve bloques COMPLETOS: al menos una imagen + al menos un archivo.
+    Descarta imagenes sueltas y archivos sueltos.
+    """
     mensajes_ord = list(reversed(mensajes))
     bloques = []
     bloque_actual = []
+
+    def bloque_completo(b):
+        return any(es_imagen(m) for m in b) and any(es_archivo_3d(m) for m in b)
+
     for msg in mensajes_ord:
         if not es_contenido(msg):
             if bloque_actual:
-                bloques.append(bloque_actual)
+                if bloque_completo(bloque_actual):
+                    bloques.append(bloque_actual)
                 bloque_actual = []
             continue
+
         if es_imagen(msg):
             if bloque_actual and es_archivo_3d(bloque_actual[-1]):
-                bloques.append(bloque_actual)
+                if bloque_completo(bloque_actual):
+                    bloques.append(bloque_actual)
                 bloque_actual = []
             bloque_actual.append(msg)
+
         elif es_archivo_3d(msg):
             bloque_actual.append(msg)
-            bloques.append(bloque_actual)
+            if bloque_completo(bloque_actual):
+                bloques.append(bloque_actual)
             bloque_actual = []
-    if bloque_actual:
+
+    if bloque_actual and bloque_completo(bloque_actual):
         bloques.append(bloque_actual)
+
     return bloques
 
 # ─────────────────────────────────────────
