@@ -50,6 +50,9 @@ stats = {
 captcha_pendiente = {}
 message_index = 0
 
+# Tracking de bloques ya reposteados por grupo {group_id: set(msg_ids)}
+bloques_usados = {}
+
 MENSAJES = [
     (
         "🚀 <b>¡POTENCIÁ TU TALLER 3D CON MR X!</b>\n"
@@ -408,13 +411,29 @@ async def repost_and_broadcast(group_id: str):
                 print(f"⚠️ Sin contenido en {group_id}")
                 return
 
-            seleccionados = random.sample(bloques, min(20, len(bloques)))
+            # Filtrar bloques ya usados
+            if group_id not in bloques_usados:
+                bloques_usados[group_id] = set()
+
+            # Identificar cada bloque por el ID del primer mensaje
+            bloques_nuevos = [b for b in bloques if b[0].id not in bloques_usados[group_id]]
+
+            # Si ya se usaron todos, resetear y empezar de nuevo
+            if not bloques_nuevos:
+                print(f"🔄 Pool agotado en {group_id}, reseteando historial...")
+                bloques_usados[group_id] = set()
+                bloques_nuevos = bloques
+
+            seleccionados = random.sample(bloques_nuevos, min(20, len(bloques_nuevos)))
+
             for bloque in seleccionados:
                 for msg in bloque:
                     try:
                         await client.send_file(int(group_id), msg.media, caption="")
                     except Exception as e:
                         print(f"⚠️ Error reposteando: {e}")
+                # Marcar bloque como usado
+                bloques_usados[group_id].add(bloque[0].id)
                 stats["reposts"] += 1
 
     except Exception as e:
