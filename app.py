@@ -50,8 +50,27 @@ stats = {
 captcha_pendiente = {}
 message_index = 0
 
-# Tracking de bloques ya reposteados por grupo {group_id: set(msg_ids)}
-bloques_usados = {}
+# Tracking persistente de bloques ya reposteados
+TRACKING_FILE = "bloques_usados.json"
+
+def cargar_tracking():
+    try:
+        import json
+        with open(TRACKING_FILE, 'r') as f:
+            data = json.load(f)
+            return {k: set(v) for k, v in data.items()}
+    except:
+        return {}
+
+def guardar_tracking(data):
+    import json
+    try:
+        with open(TRACKING_FILE, 'w') as f:
+            json.dump({k: list(v) for k, v in data.items()}, f)
+    except Exception as e:
+        print(f"Error guardando tracking: {e}")
+
+bloques_usados = cargar_tracking()
 
 MENSAJES = [
     (
@@ -352,44 +371,50 @@ def es_contenido(msg):
 
 def armar_bloques(mensajes):
     """
-    Busca pares imagen+archivo dentro de una ventana de 5 mensajes.
-    Solo devuelve bloques con imagen Y archivo. Descarta imagenes sueltas.
+    Reglas estrictas:
+    - Busca 1 imagen seguida de otra imagen (max 3 en total) con archivo en los PROXIMOS 3 mensajes
+    - Si hay imagen pero en los proximos 3 no hay archivo -> descartar
+    - Solo repostea: 2-3 imagenes + 1 archivo (el bloque tipico de admin compartiendo STL)
     """
     mensajes_ord = list(reversed(mensajes))
     bloques = []
-
     i = 0
+
     while i < len(mensajes_ord):
         msg = mensajes_ord[i]
 
-        if es_imagen(msg):
-            # Recolectar imagenes consecutivas o proximas
-            imagenes = [msg]
-            j = i + 1
-            # Buscar en ventana de 5: mas imagenes o archivo
-            archivo = None
-            while j < len(mensajes_ord) and j <= i + 5:
-                m = mensajes_ord[j]
-                if es_imagen(m):
-                    imagenes.append(m)
-                elif es_archivo_3d(m):
-                    archivo = m
-                    break
-                j += 1
-
-            if archivo:
-                # Bloque completo: imagenes + archivo
-                bloques.append(imagenes + [archivo])
-                i = j + 1  # saltar hasta despues del archivo
-            else:
-                # Imagen suelta sin archivo -> descartar
-                i += 1
-
-        elif es_archivo_3d(msg):
-            # Archivo sin imagen previa -> descartar
+        if not es_imagen(msg):
             i += 1
+            continue
+
+        # Recolectar imagenes consecutivas (max 3)
+        imagenes = [msg]
+        j = i + 1
+        while j < len(mensajes_ord) and es_imagen(mensajes_ord[j]) and len(imagenes) < 3:
+            imagenes.append(mensajes_ord[j])
+            j += 1
+
+        # Debe haber al menos 2 imagenes
+        if len(imagenes) < 2:
+            i += 1
+            continue
+
+        # Buscar archivo en los proximos 3 mensajes despues de las imagenes
+        archivo = None
+        k = j
+        while k < len(mensajes_ord) and k <= j + 2:
+            if es_archivo_3d(mensajes_ord[k]):
+                archivo = mensajes_ord[k]
+                break
+            k += 1
+
+        if archivo:
+            # Bloque valido: 2-3 imagenes + archivo
+            bloques.append(imagenes + [archivo])
+            i = k + 1  # saltar hasta despues del archivo
         else:
-            i += 1
+            # No hay archivo cerca -> descartar
+            i += len(imagenes)
 
     return bloques
 
@@ -435,8 +460,9 @@ async def repost_and_broadcast(group_id: str):
                         await client.send_file(int(group_id), msg.media, caption="")
                     except Exception as e:
                         print(f"⚠️ Error reposteando: {e}")
-                # Marcar bloque como usado
+                # Marcar bloque como usado y guardar
                 bloques_usados[group_id].add(bloque[0].id)
+                guardar_tracking(bloques_usados)
                 stats["reposts"] += 1
 
     except Exception as e:
