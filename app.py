@@ -415,6 +415,9 @@ async def repost_and_broadcast(group_id: str):
             if group_id not in bloques_usados:
                 bloques_usados[group_id] = set()
 
+            # Solo bloques con 2+ imagenes + archivo
+            bloques = [b for b in bloques if sum(1 for m in b if es_imagen(m)) >= 2]
+
             # Identificar cada bloque por el ID del primer mensaje
             bloques_nuevos = [b for b in bloques if b[0].id not in bloques_usados[group_id]]
 
