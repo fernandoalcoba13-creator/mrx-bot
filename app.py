@@ -2,7 +2,7 @@ import os
 import asyncio
 import random
 from datetime import datetime
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, jsonify
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from apscheduler.schedulers.background import BackgroundScheduler
 from telethon import TelegramClient
@@ -11,7 +11,7 @@ from telethon.tl.types import MessageMediaDocument, MessageMediaPhoto, DocumentA
 app = Flask(__name__)
 
 # ─────────────────────────────────────────
-# CONFIGURACIÓN DE VARIABLES (Railway)
+# VARIABLES DE ENTORNO (Railway)
 # ─────────────────────────────────────────
 TOKEN      = os.getenv("TELEGRAM_TOKEN")
 GROUP_IDS  = [g.strip() for g in os.getenv("GROUP_IDS", "").split(",") if g.strip()]
@@ -75,17 +75,74 @@ def get_keyboard():
         [InlineKeyboardButton("🎓 Academia Kmorra: Aprender a Diseñar",url="https://www.academiakmorra.com")]
     ])
 
-def es_stl(msg):
+# ─────────────────────────────────────────
+# HELPERS: detectar tipo de archivo
+# ─────────────────────────────────────────
+EXTENSIONES_ARCHIVO = (".stl", ".rar", ".zip", ".7z")
+
+def es_archivo_3d(msg):
+    """Detecta STL, RAR, ZIP, 7z."""
     if not msg.media or not isinstance(msg.media, MessageMediaDocument):
         return False
     for attr in msg.media.document.attributes:
-        if isinstance(attr, DocumentAttributeFilename) and attr.file_name.lower().endswith(".stl"):
-            return True
+        if isinstance(attr, DocumentAttributeFilename):
+            if attr.file_name.lower().endswith(EXTENSIONES_ARCHIVO):
+                return True
     return False
 
 def es_imagen(msg):
     return bool(msg.media and isinstance(msg.media, MessageMediaPhoto))
 
+def es_contenido(msg):
+    return es_imagen(msg) or es_archivo_3d(msg)
+
+# ─────────────────────────────────────────
+# CORE: armar bloques (imagen(s) + archivo)
+# en orden cronológico del historial
+# ─────────────────────────────────────────
+def armar_bloques(mensajes):
+    """
+    Recorre los mensajes en orden cronológico y agrupa:
+    - Una o más imágenes seguidas de un archivo = un bloque
+    - Un archivo solo = bloque
+    - Una imagen sola = bloque
+    Devuelve lista de listas de mensajes.
+    """
+    # Los mensajes de Telethon vienen de más nuevo a más viejo → invertir
+    mensajes_ord = list(reversed(mensajes))
+    
+    bloques = []
+    bloque_actual = []
+
+    for msg in mensajes_ord:
+        if not es_contenido(msg):
+            # Si hay bloque acumulado, cerrarlo
+            if bloque_actual:
+                bloques.append(bloque_actual)
+                bloque_actual = []
+            continue
+
+        if es_imagen(msg):
+            # Si el bloque actual ya tiene un archivo, cerrar y empezar nuevo
+            if bloque_actual and es_archivo_3d(bloque_actual[-1]):
+                bloques.append(bloque_actual)
+                bloque_actual = []
+            bloque_actual.append(msg)
+
+        elif es_archivo_3d(msg):
+            bloque_actual.append(msg)
+            bloques.append(bloque_actual)
+            bloque_actual = []
+
+    # Cerrar bloque pendiente
+    if bloque_actual:
+        bloques.append(bloque_actual)
+
+    return bloques
+
+# ─────────────────────────────────────────
+# REPOSTEAR + PROMO
+# ─────────────────────────────────────────
 async def repost_and_broadcast(group_id: str):
     global message_index
     bot = Bot(token=TOKEN)
@@ -95,59 +152,29 @@ async def repost_and_broadcast(group_id: str):
             print(f"📥 Obteniendo historial de {group_id}...")
             all_messages = await client.get_messages(int(group_id), limit=2000)
 
-            stl_msgs   = [m for m in all_messages if es_stl(m)]
-            image_msgs = [m for m in all_messages if es_imagen(m)]
-            image_by_id = {m.id: m for m in image_msgs}
+            bloques = armar_bloques(all_messages)
+            print(f"   → {len(bloques)} bloques encontrados")
 
-            print(f"   → {len(stl_msgs)} STLs | {len(image_msgs)} imágenes")
-
-            pares  = []
-            usados = set()
-
-            for stl in stl_msgs:
-                if stl.id in usados:
-                    continue
-                pareja = None
-                for delta in range(-3, 4):
-                    cid = stl.id + delta
-                    if cid in image_by_id and cid not in usados:
-                        pareja = image_by_id[cid]
-                        break
-                if pareja:
-                    pares.append((pareja, stl))
-                    usados.add(stl.id)
-                    usados.add(pareja.id)
-                else:
-                    pares.append((None, stl))
-                    usados.add(stl.id)
-
-            for img in image_msgs:
-                if img.id not in usados:
-                    pares.append((img, None))
-
-            if not pares:
+            if not bloques:
                 print(f"⚠️ Sin contenido en {group_id}")
                 return
 
-            seleccionados = random.sample(pares, min(20, len(pares)))
+            # Elegir hasta 20 bloques al azar
+            seleccionados = random.sample(bloques, min(20, len(bloques)))
 
-            for imagen_msg, stl_msg in seleccionados:
-                try:
-                    if imagen_msg:
+            for bloque in seleccionados:
+                for msg in bloque:
+                    try:
                         await client.send_file(
-                            int(group_id), imagen_msg.media,
-                            caption="🖼️ <b>Render</b>", parse_mode="html"
+                            int(group_id),
+                            msg.media,
+                            caption=""
                         )
-                    if stl_msg:
-                        await client.send_file(
-                            int(group_id), stl_msg.media,
-                            caption="📦 <b>Archivo STL</b>", parse_mode="html"
-                        )
-                    stats["reposts"] += 1
-                except Exception as e:
-                    print(f"⚠️ Error reposteando: {e}")
+                    except Exception as e:
+                        print(f"⚠️ Error reposteando mensaje: {e}")
+                stats["reposts"] += 1
 
-            print(f"✅ {len(seleccionados)} items reposteados en {group_id}")
+            print(f"✅ {len(seleccionados)} bloques reposteados en {group_id}")
 
     except Exception as e:
         print(f"❌ Error Telethon en {group_id}: {e}")
@@ -185,10 +212,12 @@ async def repost_and_broadcast(group_id: str):
     if exito:
         stats["total_enviados"] += 1
 
+# ─────────────────────────────────────────
+# BROADCAST PRINCIPAL
+# ─────────────────────────────────────────
 async def send_automatic_broadcast():
     global message_index
     if not TOKEN or not GROUP_IDS:
-        print("❌ Faltan variables de entorno")
         return
 
     hora_utc = datetime.utcnow().hour
@@ -196,7 +225,7 @@ async def send_automatic_broadcast():
         print(f"⏰ Hora UTC {hora_utc} no es pico. Saltando.")
         return
 
-    print(f"🚀 Broadcast iniciado en {len(GROUP_IDS)} grupos...")
+    print(f"🚀 Broadcast iniciado...")
     for group_id in GROUP_IDS:
         if group_id in stats["grupos_bloqueados"]:
             continue
@@ -205,8 +234,10 @@ async def send_automatic_broadcast():
 
     message_index += 1
     stats["ultimo_envio"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    print(f"✅ Listo. Enviados: {stats['total_enviados']} | Reposts: {stats['reposts']}")
 
+# ─────────────────────────────────────────
+# SCHEDULER
+# ─────────────────────────────────────────
 scheduler = BackgroundScheduler()
 scheduler.add_job(
     lambda: asyncio.run(send_automatic_broadcast()),
@@ -215,6 +246,9 @@ scheduler.add_job(
 )
 scheduler.start()
 
+# ─────────────────────────────────────────
+# PANEL WEB
+# ─────────────────────────────────────────
 @app.route('/')
 def home():
     grupos_ok   = len([g for g in GROUP_IDS if g not in stats["grupos_bloqueados"]])
@@ -229,34 +263,77 @@ def home():
         .bg{background:#1a3a1a;color:#00ff00;border:1px solid #00ff00;}
         .br{background:#3a1a1a;color:#ff4444;border:1px solid #ff4444;}
         .bo{background:#3a2a1a;color:#f05423;border:1px solid #f05423;}
+        .btn{display:inline-block;margin-top:15px;padding:12px 30px;background:#f05423;color:white;
+             border-radius:8px;text-decoration:none;font-weight:bold;font-size:1.1em;}
+        .btn:hover{background:#d04010;}
     </style></head><body>
         <h1>🤖 MR X BOT</h1>
         <p style="color:#aaa">Sistema de difusión con reposts históricos</p>
-        <div class="card"><h2>📊 Estadísticas</h2>
+
+        <div class="card">
+            <h2>📊 Estadísticas</h2>
             <p>✅ Promos enviadas: <b class="ok">{{ total }}</b></p>
-            <p>📦 Archivos reposteados: <b class="ok">{{ reposts }}</b></p>
+            <p>📦 Bloques reposteados: <b class="ok">{{ reposts }}</b></p>
             <p>❌ Errores: <b class="err">{{ errores }}</b></p>
             <p>🕐 Último envío: <b style="color:#f05423">{{ ultimo }}</b></p>
         </div>
-        <div class="card"><h2>👥 Grupos</h2>
+
+        <div class="card">
+            <h2>👥 Grupos</h2>
             <span class="badge bg">✓ Activos: {{ grupos_ok }}</span>
             <span class="badge br">✗ Bloqueados: {{ grupos_bloq }}</span>
         </div>
-        <div class="card"><h2>⏰ Horarios (🇦🇷 Argentina)</h2>
+
+        <div class="card">
+            <h2>⏰ Horarios (🇦🇷 Argentina)</h2>
             <span class="badge bo">9:00 AM</span>
             <span class="badge bo">2:00 PM</span>
             <span class="badge bo">9:00 PM</span>
         </div>
-        <div class="card"><h2>🔄 Flujo por grupo</h2>
-            <p style="color:#aaa;font-size:.9em">
-                📥 Lee historial → 🎲 Elige 20 al azar<br>
-                📤 Repostea imagen + STL → 🚀 Envía promo final
-            </p>
+
+        <div class="card">
+            <h2>🧪 Prueba manual</h2>
+            <p style="color:#aaa;font-size:.9em">Dispara el broadcast ahora sin esperar el horario pico</p>
+            <a href="/test" class="btn">▶ Ejecutar ahora</a>
         </div>
     </body></html>
-    ''', total=stats["total_enviados"], reposts=stats["reposts"],
-         errores=stats["errores"], ultimo=stats["ultimo_envio"],
-         grupos_ok=grupos_ok, grupos_bloq=grupos_bloq)
+    ''',
+    total=stats["total_enviados"],
+    reposts=stats["reposts"],
+    errores=stats["errores"],
+    ultimo=stats["ultimo_envio"],
+    grupos_ok=grupos_ok,
+    grupos_bloq=grupos_bloq
+    )
+
+# ─────────────────────────────────────────
+# ENDPOINT DE PRUEBA MANUAL
+# ─────────────────────────────────────────
+@app.route('/test')
+def test_broadcast():
+    async def run():
+        global message_index
+        for group_id in GROUP_IDS:
+            if group_id in stats["grupos_bloqueados"]:
+                continue
+            await repost_and_broadcast(group_id)
+            await asyncio.sleep(2)
+        message_index += 1
+        stats["ultimo_envio"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    asyncio.run(run())
+    return render_template_string('''
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>MR X BOT - Test</title>
+    <style>
+        body{font-family:sans-serif;background:#1a1a1a;color:white;text-align:center;padding:60px;}
+        h1{color:#00ff00;} .btn{display:inline-block;margin-top:20px;padding:12px 30px;
+        background:#f05423;color:white;border-radius:8px;text-decoration:none;font-weight:bold;}
+    </style></head><body>
+        <h1>✅ Broadcast ejecutado!</h1>
+        <p style="color:#aaa">Revisá el grupo para ver los reposts y el mensaje promo.</p>
+        <a href="/" class="btn">← Volver al panel</a>
+    </body></html>
+    ''')
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
