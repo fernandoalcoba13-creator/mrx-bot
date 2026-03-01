@@ -349,39 +349,44 @@ def es_contenido(msg):
 
 def armar_bloques(mensajes):
     """
-    Solo devuelve bloques COMPLETOS: al menos una imagen + al menos un archivo.
-    Descarta imagenes sueltas y archivos sueltos.
+    Busca pares imagen+archivo dentro de una ventana de 5 mensajes.
+    Solo devuelve bloques con imagen Y archivo. Descarta imagenes sueltas.
     """
     mensajes_ord = list(reversed(mensajes))
     bloques = []
-    bloque_actual = []
 
-    def bloque_completo(b):
-        return any(es_imagen(m) for m in b) and any(es_archivo_3d(m) for m in b)
-
-    for msg in mensajes_ord:
-        if not es_contenido(msg):
-            if bloque_actual:
-                if bloque_completo(bloque_actual):
-                    bloques.append(bloque_actual)
-                bloque_actual = []
-            continue
+    i = 0
+    while i < len(mensajes_ord):
+        msg = mensajes_ord[i]
 
         if es_imagen(msg):
-            if bloque_actual and es_archivo_3d(bloque_actual[-1]):
-                if bloque_completo(bloque_actual):
-                    bloques.append(bloque_actual)
-                bloque_actual = []
-            bloque_actual.append(msg)
+            # Recolectar imagenes consecutivas o proximas
+            imagenes = [msg]
+            j = i + 1
+            # Buscar en ventana de 5: mas imagenes o archivo
+            archivo = None
+            while j < len(mensajes_ord) and j <= i + 5:
+                m = mensajes_ord[j]
+                if es_imagen(m):
+                    imagenes.append(m)
+                elif es_archivo_3d(m):
+                    archivo = m
+                    break
+                j += 1
+
+            if archivo:
+                # Bloque completo: imagenes + archivo
+                bloques.append(imagenes + [archivo])
+                i = j + 1  # saltar hasta despues del archivo
+            else:
+                # Imagen suelta sin archivo -> descartar
+                i += 1
 
         elif es_archivo_3d(msg):
-            bloque_actual.append(msg)
-            if bloque_completo(bloque_actual):
-                bloques.append(bloque_actual)
-            bloque_actual = []
-
-    if bloque_actual and bloque_completo(bloque_actual):
-        bloques.append(bloque_actual)
+            # Archivo sin imagen previa -> descartar
+            i += 1
+        else:
+            i += 1
 
     return bloques
 
